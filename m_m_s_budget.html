@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>M&M's budget</title>
+<style>
+  :root {
+    --bg: #ffdf00;
+    --card: #ffffff;
+    --border: #000000;
+    --primary: #ff69b4;
+    --secondary: #00ffff;
+    --tertiary: #39ff14; /* Bright green for stats */
+  }
+  * { box-sizing: border-box; font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif; }
+  body { 
+    background-color: var(--bg); 
+    margin: 0; padding: 20px; 
+    color: var(--border);
+  }
+  .container {
+    max-width: 400px;
+    margin: 0 auto;
+    padding-bottom: 40px;
+  }
+  h1 {
+    font-size: 2rem;
+    text-transform: uppercase;
+    text-align: center;
+    text-shadow: 2px 2px 0 var(--secondary);
+    border: 4px solid var(--border);
+    background: var(--card);
+    padding: 10px;
+    box-shadow: 4px 4px 0 var(--border);
+    border-radius: 8px;
+    margin-top: 0;
+  }
+  .box {
+    background: var(--card);
+    border: 4px solid var(--border);
+    box-shadow: 4px 4px 0 var(--border);
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+  }
+  .box.stats-box {
+    background: var(--tertiary);
+  }
+  input, select, button {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 15px;
+    border: 3px solid var(--border);
+    border-radius: 6px;
+    font-size: 1.2rem;
+    outline: none;
+  }
+  input[type="number"] {
+    font-size: 2.5rem;
+    font-weight: bold;
+    text-align: center;
+    background: #f0f0f0;
+    padding: 20px;
+  }
+  button {
+    background: var(--primary);
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 var(--border);
+    transition: transform 0.1s, box-shadow 0.1s;
+    text-transform: uppercase;
+  }
+  button:active {
+    transform: translate(3px, 3px);
+    box-shadow: 0 0 0 var(--border);
+  }
+  button.export-btn {
+    background: var(--card);
+    margin-bottom: 0;
+    margin-top: 10px;
+    border: 3px dashed var(--border);
+  }
+  .flex { display: flex; gap: 10px; }
+  .flex select { flex: 2; margin-bottom: 0; }
+  .flex button { flex: 1; margin-bottom: 0; background: var(--secondary); font-size: 1rem; }
+  
+  .expense-item {
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    border-bottom: 3px dashed var(--border);
+  }
+  .expense-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1.1rem;
+    font-weight: bold;
+  }
+  .expense-sub {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    font-weight: normal;
+    margin-top: 5px;
+    color: #444;
+  }
+  .expense-item:last-child { border-bottom: none; }
+  
+  .stat-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    font-size: 1.2rem;
+    font-weight: bold;
+  }
+
+  .total {
+    font-size: 1.8rem;
+    text-align: center;
+    font-weight: bold;
+    background: var(--secondary);
+    padding: 15px;
+    border: 4px solid var(--border);
+    box-shadow: 4px 4px 0 var(--border);
+    border-radius: 8px;
+    margin-bottom: 20px;
+  }
+  h2 {
+    margin-top: 0;
+    font-size: 1.4rem;
+    text-transform: uppercase;
+    border-bottom: 4px solid var(--border);
+    padding-bottom: 5px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>M&M's budget 💥</h1>
+  
+  <!-- Lifetime Total -->
+  <div class="total">
+    Lifetime: $<span id="totalDisplay">0.00</span>
+  </div>
+
+  <!-- Input Area -->
+  <div class="box">
+    <input type="number" id="amount" placeholder="$0.00" step="0.01" inputmode="decimal">
+    
+    <input type="text" id="store" placeholder="🛒 Shop/Store Name">
+    <input type="text" id="details" placeholder="📝 Details (e.g. Groceries)">
+    
+    <div class="flex" style="margin-bottom: 15px;">
+      <select id="paymentMethod">
+        <option value="💳 Card">💳 Card</option>
+        <option value="💵 Cash">💵 Cash</option>
+      </select>
+    </div>
+
+    <div class="flex" style="margin-bottom: 15px;">
+      <select id="categorySelect"></select>
+      <button id="addCatBtn">+ Cat</button>
+    </div>
+
+    <button id="saveBtn">POW! Save 🚀</button>
+  </div>
+
+  <!-- Monthly Stats Area -->
+  <div class="box stats-box">
+    <h2 id="currentMonthTitle">This Month</h2>
+    <div id="monthlyStatsList">
+      <!-- Categorized totals go here -->
+    </div>
+    <button class="export-btn" id="exportBtn">📄 Export to Sheets (CSV)</button>
+  </div>
+
+  <!-- Recent Expenses -->
+  <div class="box">
+    <h2>Recent Zaps</h2>
+    <div id="expenseList">
+      <!-- Expenses will render here -->
+    </div>
+  </div>
+</div>
+
+<script>
+  // App Logic & LocalStorage
+  let expenses = JSON.parse(localStorage.getItem('zap_expenses')) || [];
+  let categories = JSON.parse(localStorage.getItem('zap_categories')) || ['🍔 Food', '🚌 Transport', '☕️ Coffee'];
+
+  const amountInput = document.getElementById('amount');
+  const storeInput = document.getElementById('store');
+  const detailsInput = document.getElementById('details');
+  const paymentSelect = document.getElementById('paymentMethod');
+  const catSelect = document.getElementById('categorySelect');
+  const listEl = document.getElementById('expenseList');
+  const totalEl = document.getElementById('totalDisplay');
+  const statsListEl = document.getElementById('monthlyStatsList');
+  const monthTitleEl = document.getElementById('currentMonthTitle');
+
+  function init() {
+    renderCategories();
+    renderData();
+  }
+
+  function renderCategories() {
+    catSelect.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+  }
+
+  function renderData() {
+    // 1. Render Lifetime Total
+    const lifetimeTotal = expenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+    totalEl.innerText = lifetimeTotal.toFixed(2);
+
+    // 2. Render Recent Expenses List (limit to last 10 for performance/UI)
+    listEl.innerHTML = expenses.slice(0, 10).map(e => `
+      <div class="expense-item">
+        <div class="expense-row">
+          <span>${e.category} - ${e.payment || '💳 Card'}</span>
+          <span>$${parseFloat(e.amount).toFixed(2)}</span>
+        </div>
+        <div class="expense-sub">
+          <span>🛒 ${e.store || 'N/A'}</span>
+          <span>📝 ${e.details || 'N/A'}</span>
+        </div>
+      </div>
+    `).join('') || '<div style="text-align:center; padding: 10px;">No expenses yet!</div>';
+
+    // 3. Calculate and Render Monthly Stats
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    
+    monthTitleEl.innerText = `${monthNames[currentMonth]} Breakdown`;
+
+    const thisMonthExpenses = expenses.filter(e => {
+      const d = new Date(e.date);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    });
+
+    // Group by category
+    const categoryTotals = {};
+    thisMonthExpenses.forEach(e => {
+      categoryTotals[e.category] = (categoryTotals[e.category] || 0) + parseFloat(e.amount);
+    });
+
+    // Render Stats
+    const statsHtml = Object.keys(categoryTotals).map(cat => `
+      <div class="stat-item">
+        <span>${cat}</span>
+        <span>$${categoryTotals[cat].toFixed(2)}</span>
+      </div>
+    `).join('') || '<div style="text-align:center; padding: 10px;">Nothing spent this month.</div>';
+    
+    statsListEl.innerHTML = statsHtml;
+  }
+
+  // Save Button Logic
+  document.getElementById('saveBtn').addEventListener('click', () => {
+    const amt = amountInput.value;
+    if (!amt || amt <= 0) {
+      alert('Enter a valid amount!');
+      return;
+    }
+    
+    expenses.unshift({ 
+      amount: amt, 
+      category: catSelect.value,
+      store: storeInput.value,
+      details: detailsInput.value,
+      payment: paymentSelect.value,
+      date: new Date().toISOString() 
+    });
+    
+    localStorage.setItem('zap_expenses', JSON.stringify(expenses));
+    
+    amountInput.value = '';
+    storeInput.value = '';
+    detailsInput.value = '';
+    renderData();
+  });
+
+  // Add Category Logic
+  document.getElementById('addCatBtn').addEventListener('click', () => {
+    const newCat = prompt('Enter a new category (Add an emoji!):');
+    if (newCat && newCat.trim() !== '') {
+      categories.push(newCat.trim());
+      localStorage.setItem('zap_categories', JSON.stringify(categories));
+      renderCategories();
+      catSelect.value = newCat.trim(); // Auto-select new category
+    }
+  });
+
+  // Export Logic (CSV)
+  document.getElementById('exportBtn').addEventListener('click', () => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const thisMonthExpenses = expenses.filter(e => {
+      const d = new Date(e.date);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    });
+
+    if (thisMonthExpenses.length === 0) {
+      alert("No expenses to export for this month!");
+      return;
+    }
+
+    // Build CSV Content
+    let csvContent = "Date,Category,Amount,Store,Details,Payment Method\n";
+    thisMonthExpenses.forEach(e => {
+      const dateStr = new Date(e.date).toLocaleDateString();
+      // Ensure text fields don't break CSV if they have commas
+      const safeCat = `"${e.category.replace(/"/g, '""')}"`; 
+      const safeStore = `"${(e.store || '').replace(/"/g, '""')}"`;
+      const safeDetails = `"${(e.details || '').replace(/"/g, '""')}"`;
+      csvContent += `${dateStr},${safeCat},${e.amount},${safeStore},${safeDetails},${e.payment || 'Card'}\n`;
+    });
+
+    // Trigger Download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", `ZapTrack_Expenses_${currentMonth + 1}_${currentYear}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  });
+
+  init();
+</script>
+</body>
+</html>
